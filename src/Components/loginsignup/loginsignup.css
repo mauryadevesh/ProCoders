@@ -1,0 +1,288 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #FFF8EC;
+  font-family: 'Segoe UI', sans-serif;
+}
+
+.Container {
+  background: #f5deb5;
+  border-radius: 20px;
+  padding: 48px 40px 36px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 20px 60px rgba(30, 42, 66, 0.45);
+  transition: all 0.4s ease;
+}
+
+/* ── Header ── */
+.header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 36px;
+}
+
+.text {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1e2a42;
+  letter-spacing: 0.5px;
+  transition: color 0.3s ease;
+}
+
+.underline {
+  width: 60px;
+  height: 4px;
+  border-radius: 2px;
+  background: #ffc570;
+  transition: width 0.4s ease, background 0.3s ease;
+}
+
+.header:hover .underline {
+  width: 100px;
+}
+
+/* ── Inputs ── */
+.inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.input {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1.5px solid rgba(255, 197, 112, 0.4);
+  border-radius: 12px;
+  padding: 14px 18px;
+  transition: background 0.3s ease, border-color 0.3s ease, transform 0.2s ease,
+    box-shadow 0.3s ease;
+}
+
+.input:hover {
+  background: rgba(255, 255, 255, 0.75);
+  border-color: #ffc570;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 197, 112, 0.25);
+}
+
+.input:focus-within {
+  background: #fff;
+  border-color: #4a6b8a;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(74, 107, 138, 0.2);
+}
+
+.input img {
+  width: 22px;
+  height: 22px;
+  opacity: 0.6;
+  transition: opacity 0.3s ease;
+  flex-shrink: 0;
+}
+
+.input:focus-within img {
+  opacity: 1;
+}
+
+.input input {
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 0.95rem;
+  color: #1e2a42;
+  width: 100%;
+  caret-color: #4a6b8a;
+}
+
+.input input::placeholder {
+  color: #8a7e6e;
+  transition: color 0.3s ease;
+}
+
+.input input:focus::placeholder {
+  color: #b0a898;
+}
+
+/* ── Forgot password ── */
+.forgot-password {
+  font-size: 0.85rem;
+  color: #4a6b8a;
+  text-align: right;
+  margin-bottom: 20px;
+  animation: fadeIn 0.4s ease;
+}
+
+.forgot-password span {
+  color: #1e2a42;
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 1.5px solid transparent;
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+.forgot-password span:hover {
+  color: #ffc570;
+  border-color: #ffc570;
+}
+
+/* ── Submit buttons ── */
+.submit-container {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.submit {
+  flex: 1;
+  padding: 14px;
+  border-radius: 12px;
+  text-align: center;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: 0.4px;
+  background: #1e2a42;
+  color: #ffc570;
+  border: 2px solid #1e2a42;
+  transition: background 0.3s ease, color 0.3s ease, transform 0.2s ease,
+    box-shadow 0.3s ease, border-color 0.3s ease;
+  user-select: none;
+}
+
+.submit:hover {
+  background: #4a6b8a;
+  border-color: #4a6b8a;
+  color: #fff;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(30, 42, 66, 0.3);
+}
+
+.submit:active {
+  transform: translateY(0px);
+  box-shadow: none;
+}
+
+.submit.gray {
+  background: transparent;
+  color: #8a7e6e;
+  border-color: rgba(138, 126, 110, 0.35);
+}
+
+.submit.gray:hover {
+  background: rgba(255, 255, 255, 0.5);
+  border-color: #4a6b8a;
+  color: #1e2a42;
+  box-shadow: none;
+  transform: translateY(-1px);
+}
+
+/* ── Fade-in animation ── */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.inputs .input {
+  animation: fadeIn 0.35s ease both;
+}
+
+.inputs .input:nth-child(1) { animation-delay: 0.05s; }
+.inputs .input:nth-child(2) { animation-delay: 0.1s; }
+.inputs .input:nth-child(3) { animation-delay: 0.15s; }
+
+/* ── Reset password modal ── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(30, 42, 66, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  z-index: 100;
+}
+
+.modal-overlay.visible {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.modal {
+  background: #FFF8EC;
+  border-radius: 16px;
+  padding: 32px 28px;
+  width: 320px;
+  text-align: center;
+  transform: translateY(10px);
+  transition: transform 0.3s ease;
+}
+
+.modal-overlay.visible .modal {
+  transform: translateY(0);
+}
+
+.modal h3 {
+  color: #1e2a42;
+  font-size: 1.2rem;
+  margin-bottom: 8px;
+}
+
+.modal p {
+  color: #5a6e82;
+  font-size: 0.88rem;
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
+.modal-btn {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  background: #1e2a42;
+  color: #ffc570;
+  border: none;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.3s ease, transform 0.2s ease;
+}
+
+.modal-btn:hover {
+  background: #4a6b8a;
+  transform: translateY(-1px);
+}
+
+.modal-close {
+  margin-top: 10px;
+  font-size: 0.82rem;
+  color: #8a7e6e;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.modal-close:hover {
+  color: #1e2a42;
+}
