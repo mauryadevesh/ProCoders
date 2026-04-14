@@ -1,7 +1,5 @@
 # SmartPrep AI (ProCoders Test)
 
-drive link :https://drive.google.com/drive/folders/1qPFRz5JUWTOl7BkBMNLnjAcRDrKQe2OL?usp=sharing
-
 Adaptive placement-prep platform with a FastAPI backend and React frontend.
 It delivers subject-wise quizzes, easy-to-hard progression, weak-area targeting, and personalized chapter re-read recommendations.
 
