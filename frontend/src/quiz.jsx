@@ -223,7 +223,10 @@ function Quiz({ user, subject, onExit, onComplete }) {
       </div>
 
       <div className="quiz-meta">
-        <span className="pill">{question.concept}</span>
+        <span className="pill">{question.topic || question.concept}</span>
+        {question.topic && question.topic !== question.concept ? (
+          <span className="pill muted">{question.concept}</span>
+        ) : null}
         <span className="pill muted">{question.difficulty}</span>
       </div>
 

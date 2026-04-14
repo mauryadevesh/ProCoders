@@ -6,6 +6,34 @@ from questions import get_subject
 
 CHAPTER_LIBRARY = {
     "computer_science": {
+        "Python Variables": [
+            {
+                "chapter": "Python Variables",
+                "source": "W3Schools",
+                "url": "https://www.w3schools.com/python/python_variables.asp",
+            }
+        ],
+        "Python Functions": [
+            {
+                "chapter": "Python Functions",
+                "source": "W3Schools",
+                "url": "https://www.w3schools.com/python/python_functions.asp",
+            }
+        ],
+        "Data Structures": [
+            {
+                "chapter": "Python Lists and Dictionaries",
+                "source": "W3Schools",
+                "url": "https://www.w3schools.com/python/python_lists.asp",
+            }
+        ],
+        "Object Oriented Programming": [
+            {
+                "chapter": "Python Classes and Objects",
+                "source": "W3Schools",
+                "url": "https://www.w3schools.com/python/python_classes.asp",
+            }
+        ],
         "Algorithms": [
             {
                 "chapter": "Algorithms and Big-O Basics",
@@ -42,6 +70,13 @@ CHAPTER_LIBRARY = {
                 "url": "https://www.khanacademy.org/computing/computer-science/computers-and-internet",
             },
         ],
+        "Computer Systems": [
+            {
+                "chapter": "Computer Systems",
+                "source": "Khan Academy",
+                "url": "https://www.khanacademy.org/computing/computer-science/computers-and-internet",
+            }
+        ],
         "_general": [
             {
                 "chapter": "Computer Science Core Concepts",
@@ -51,6 +86,34 @@ CHAPTER_LIBRARY = {
         ],
     },
     "mathematics": {
+        "Linear Equations": [
+            {
+                "chapter": "Linear Equations and Graphing",
+                "source": "Khan Academy",
+                "url": "https://www.khanacademy.org/math/algebra-home",
+            }
+        ],
+        "Arithmetic": [
+            {
+                "chapter": "Arithmetic Foundations",
+                "source": "Khan Academy",
+                "url": "https://www.khanacademy.org/math/arithmetic",
+            }
+        ],
+        "Probability": [
+            {
+                "chapter": "Probability Basics",
+                "source": "Khan Academy",
+                "url": "https://www.khanacademy.org/math/statistics-probability/probability-library",
+            }
+        ],
+        "Geometry": [
+            {
+                "chapter": "Geometry Foundations",
+                "source": "Khan Academy",
+                "url": "https://www.khanacademy.org/math/geometry",
+            }
+        ],
         "Algebra": [
             {
                 "chapter": "Algebra Foundations",
@@ -111,6 +174,20 @@ CHAPTER_LIBRARY = {
         ],
     },
     "general_knowledge": {
+        "Current Affairs": [
+            {
+                "chapter": "Current Events Learning",
+                "source": "BBC",
+                "url": "https://www.bbc.com/news",
+            }
+        ],
+        "World History": [
+            {
+                "chapter": "World History Overview",
+                "source": "Khan Academy",
+                "url": "https://www.khanacademy.org/humanities/world-history",
+            }
+        ],
         "Culture": [
             {
                 "chapter": "Arts and Humanities",
@@ -141,6 +218,27 @@ CHAPTER_LIBRARY = {
         ],
     },
     "history": {
+        "Ancient History": [
+            {
+                "chapter": "Ancient Civilizations",
+                "source": "Khan Academy",
+                "url": "https://www.khanacademy.org/humanities/world-history/ancient-medieval",
+            }
+        ],
+        "Modern History": [
+            {
+                "chapter": "Modern World History",
+                "source": "Khan Academy",
+                "url": "https://www.khanacademy.org/humanities/world-history",
+            }
+        ],
+        "Historical Events": [
+            {
+                "chapter": "Major Historical Events",
+                "source": "Britannica",
+                "url": "https://www.britannica.com/topic/list-of-time-periods-2001851",
+            }
+        ],
         "Ancient": [
             {
                 "chapter": "Ancient Civilizations",
@@ -171,6 +269,20 @@ CHAPTER_LIBRARY = {
         ],
     },
     "geography": {
+        "World Capitals": [
+            {
+                "chapter": "World Capitals Reference",
+                "source": "Britannica",
+                "url": "https://www.britannica.com/topic/list-of-capitals-1994452",
+            }
+        ],
+        "Physical Geography": [
+            {
+                "chapter": "Physical Geography Basics",
+                "source": "National Geographic",
+                "url": "https://education.nationalgeographic.org/resource/physical-geography/",
+            }
+        ],
         "Countries": [
             {
                 "chapter": "Countries of the World",
@@ -210,6 +322,7 @@ def _now_iso():
 def _new_profile():
     return {
         "concept_stats": {},
+        "subject_topic_stats": {},
         "records": [],
         "total_attempts": 0,
         "total_correct": 0,
@@ -247,6 +360,12 @@ def _ensure_profile(user_id):
     if profile:
         profile.pop("user_id", None)
         profile.pop("updated_at", None)
+        profile.setdefault("concept_stats", {})
+        profile.setdefault("subject_topic_stats", {})
+        profile.setdefault("records", [])
+        profile.setdefault("total_attempts", 0)
+        profile.setdefault("total_correct", 0)
+        profile.setdefault("total_time", 0.0)
         return profile
 
     profile = _new_profile()
@@ -297,6 +416,64 @@ def _rank_concepts(concept_stats, reverse=False):
     return [concept for concept, _ in ranking]
 
 
+def _update_subject_topic_stats(subject_topic_stats, subject_id, topic, is_correct, time_taken):
+    resolved_subject = subject_id or "unknown"
+    resolved_topic = (topic or "General Practice").strip() or "General Practice"
+
+    if resolved_subject not in subject_topic_stats:
+        subject_topic_stats[resolved_subject] = {}
+
+    _update_concept_stats(
+        subject_topic_stats[resolved_subject],
+        resolved_topic,
+        is_correct,
+        time_taken,
+    )
+
+
+def _build_weak_topics_by_subject(subject_topic_stats, subject_limit=6, topic_limit=3):
+    ranked_subjects = []
+
+    for subject_id, topic_stats in subject_topic_stats.items():
+        if not topic_stats:
+            continue
+
+        weak_topic_pairs = sorted(
+            topic_stats.items(),
+            key=lambda item: item[1]["mastery"],
+        )[:topic_limit]
+
+        if not weak_topic_pairs:
+            continue
+
+        avg_mastery = sum(values["mastery"] for _, values in weak_topic_pairs) / len(weak_topic_pairs)
+        ranked_subjects.append((subject_id, avg_mastery, weak_topic_pairs))
+
+    ranked_subjects.sort(key=lambda item: item[1])
+
+    result = []
+    for subject_id, _, weak_topic_pairs in ranked_subjects[:subject_limit]:
+        subject = get_subject(subject_id)
+        subject_name = subject["name"] if subject else subject_id.replace("_", " ").title()
+
+        result.append(
+            {
+                "subject_id": subject_id,
+                "subject_name": subject_name,
+                "topics": [
+                    {
+                        "topic": topic,
+                        "mastery": round(values["mastery"] * 100, 2),
+                        "attempts": values["attempts"],
+                    }
+                    for topic, values in weak_topic_pairs
+                ],
+            }
+        )
+
+    return result
+
+
 def _build_study_plan(weak_areas):
     if not weak_areas:
         return [
@@ -330,14 +507,14 @@ def _lowest_mastery_concepts(concept_mastery, limit=3):
 
 def _chapter_action_text(readiness_score):
     if readiness_score < 45:
-        return "Read this chapter once more, then solve 8 focused questions."
+        return "Review this topic deeply, then solve 8 focused questions."
     if readiness_score < 65:
-        return "Revisit key sections once more and solve 5 targeted questions."
-    return "Skim this chapter and attempt a short mixed quiz to retain mastery."
+        return "Revisit the topic summary and solve 5 targeted questions."
+    return "Skim this topic and attempt a short mixed quiz to retain mastery."
 
 
-def _build_revision_message(readiness_score, weak_areas, subject_name):
-    if not weak_areas:
+def _build_revision_message(readiness_score, weak_topics, subject_name):
+    if not weak_topics:
         return (
             f"Your {subject_name} performance is stable. Do a quick chapter skim and keep practicing"
             " mixed quizzes."
@@ -345,17 +522,17 @@ def _build_revision_message(readiness_score, weak_areas, subject_name):
 
     if readiness_score < 55:
         return (
-            f"Your readiness in {subject_name} is below target. Re-read the suggested chapters once more"
+            f"Your readiness in {subject_name} is below target. Revisit the suggested weak topics"
             " before your next attempt."
         )
 
     return (
-        f"You are improving in {subject_name}. Revisit weak chapters once more to convert them"
+        f"You are improving in {subject_name}. Keep reinforcing weak topics to convert them"
         " into strong areas."
     )
 
 
-def _build_chapter_recommendations(subject_id, subject_name, weak_areas, concept_mastery, readiness_score):
+def _build_chapter_recommendations(subject_id, subject_name, weak_topics, topic_mastery, readiness_score):
     if not subject_id:
         return []
 
@@ -363,36 +540,37 @@ def _build_chapter_recommendations(subject_id, subject_name, weak_areas, concept
     if not chapter_catalog:
         return []
 
-    concept_candidates = list(weak_areas[:3])
-    if not concept_candidates:
-        concept_candidates = _lowest_mastery_concepts(concept_mastery, limit=2)
+    topic_candidates = list(weak_topics[:3])
+    if not topic_candidates:
+        topic_candidates = _lowest_mastery_concepts(topic_mastery, limit=2)
 
-    if not concept_candidates:
-        concept_candidates = [
+    if not topic_candidates:
+        topic_candidates = [
             concept for concept in chapter_catalog.keys() if concept != "_general"
         ][:2]
 
     action_text = _chapter_action_text(readiness_score)
     recommendations = []
 
-    for concept in concept_candidates:
-        chapter_options = chapter_catalog.get(concept) or chapter_catalog.get("_general", [])
+    for topic in topic_candidates:
+        chapter_options = chapter_catalog.get(topic) or chapter_catalog.get("_general", [])
         if not chapter_options:
             continue
 
         selected_chapter = chapter_options[0]
-        mastery_value = concept_mastery.get(concept)
+        mastery_value = topic_mastery.get(topic)
 
         if mastery_value is None:
-            why_text = f"{concept} was flagged during your recent {subject_name} quiz."
+            why_text = f"{topic} was flagged during your recent {subject_name} quiz."
         else:
-            why_text = f"{concept} mastery is currently {round(mastery_value, 2)}%."
+            why_text = f"{topic} mastery is currently {round(mastery_value, 2)}%."
 
         recommendations.append(
             {
                 "subject_id": subject_id,
                 "subject_name": subject_name,
-                "concept": concept,
+                "concept": topic,
+                "topic": topic,
                 "chapter_title": selected_chapter["chapter"],
                 "source": selected_chapter["source"],
                 "url": selected_chapter["url"],
@@ -414,6 +592,7 @@ def _build_chapter_recommendations(subject_id, subject_name, weak_areas, concept
             "subject_id": subject_id,
             "subject_name": subject_name,
             "concept": "Core Review",
+            "topic": "Core Review",
             "chapter_title": general_chapter["chapter"],
             "source": general_chapter["source"],
             "url": general_chapter["url"],
@@ -477,6 +656,8 @@ def update_stats(user_id, question, is_correct, time_taken):
         session = _new_session(question.get("subject_id", "unknown"), "Unknown", 1)
 
     concept = question["concept"]
+    topic = question.get("topic") or concept
+    subject_id = question.get("subject_id") or session.get("subject_id") or "unknown"
     safe_time = max(float(time_taken), 0.1)
 
     session["attempts"] += 1
@@ -494,6 +675,7 @@ def update_stats(user_id, question, is_correct, time_taken):
     if is_correct:
         profile["total_correct"] += 1
     _update_concept_stats(profile["concept_stats"], concept, is_correct, safe_time)
+    _update_subject_topic_stats(profile["subject_topic_stats"], subject_id, topic, is_correct, safe_time)
 
     attempts = session["attempts"]
     accuracy = (session["correct"] / attempts) * 100 if attempts else 0
@@ -529,6 +711,11 @@ def finalize_session(user_id):
     concept_mastery = _concept_mastery_map(session["concept_stats"])
     weak_areas = _rank_concepts(session["concept_stats"])[:3]
     strong_areas = _rank_concepts(session["concept_stats"], reverse=True)[:3]
+    profile = _ensure_profile(user_id)
+
+    subject_topic_stats = profile.get("subject_topic_stats", {}).get(session["subject_id"], {})
+    topic_mastery = _concept_mastery_map(subject_topic_stats)
+    weak_topics = _rank_concepts(subject_topic_stats)[:3]
 
     summary = {
         "subject_id": session["subject_id"],
@@ -540,12 +727,13 @@ def finalize_session(user_id):
         "avg_time": round(avg_time, 2),
         "readiness_score": round(readiness_score, 2),
         "concept_mastery": concept_mastery,
+        "topic_mastery": topic_mastery,
         "weak_areas": weak_areas,
+        "weak_topics": weak_topics,
         "strong_areas": strong_areas,
         "timeline": session["timeline"],
     }
 
-    profile = _ensure_profile(user_id)
     profile["records"].append(summary)
     profile["records"] = profile["records"][-30:]
 
@@ -557,6 +745,7 @@ def finalize_session(user_id):
 def get_dashboard(user_id):
     profile = _ensure_profile(user_id)
     concept_mastery = _concept_mastery_map(profile["concept_stats"])
+    subject_topic_stats = profile.get("subject_topic_stats", {})
 
     total_attempts = profile["total_attempts"]
     overall_accuracy = (profile["total_correct"] / total_attempts) * 100 if total_attempts else 0
@@ -571,30 +760,36 @@ def get_dashboard(user_id):
 
     subject_id = None
     subject_name = "Current subject"
-    subject_concept_mastery = {}
+    subject_topic_mastery = {}
+    subject_weak_topics = []
 
     if active_session and active_session.get("subject_id"):
         subject_id = active_session["subject_id"]
         subject_name = active_session.get("subject_name") or subject_name
+        current_subject_topic_stats = subject_topic_stats.get(subject_id, {})
+        subject_topic_mastery = _concept_mastery_map(current_subject_topic_stats)
+        subject_weak_topics = _rank_concepts(current_subject_topic_stats)[:3]
     elif latest_record:
         subject_id = latest_record.get("subject_id")
         subject_name = latest_record.get("subject_name") or subject_name
-        subject_concept_mastery = latest_record.get("concept_mastery", {})
+        subject_topic_mastery = latest_record.get("topic_mastery", {})
+        subject_weak_topics = latest_record.get("weak_topics", [])
 
     if subject_id and subject_name == "Current subject":
         subject = get_subject(subject_id)
         subject_name = subject["name"] if subject else "Current subject"
 
-    recommendation_mastery = subject_concept_mastery or concept_mastery
+    recommendation_mastery = subject_topic_mastery or concept_mastery
     chapter_recommendations = _build_chapter_recommendations(
         subject_id,
         subject_name,
-        weak_areas,
+        subject_weak_topics,
         recommendation_mastery,
         latest_readiness,
     )
 
-    revision_message = _build_revision_message(latest_readiness, weak_areas, subject_name)
+    revision_message = _build_revision_message(latest_readiness, subject_weak_topics, subject_name)
+    weak_topics_by_subject = _build_weak_topics_by_subject(subject_topic_stats)
 
     progress = [
         {
@@ -614,7 +809,10 @@ def get_dashboard(user_id):
             "readiness_score": round(latest_readiness, 2),
         },
         "concept_mastery": concept_mastery,
+        "topic_mastery": subject_topic_mastery,
         "weak_areas": weak_areas,
+        "weak_topics": subject_weak_topics,
+        "weak_topics_by_subject": weak_topics_by_subject,
         "strong_areas": strong_areas,
         "records": list(reversed(profile["records"])),
         "progress": progress,

@@ -1,11 +1,31 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getDashboard, getSubjects } from "./api";
 import Quiz from "./quiz";
+import LoginSignup from "./components/LoginSignup";
 import "./App.css";
 
-const GUEST_USER = {
-  id: "guest_user",
-  name: "Guest Learner",
+const AUTH_STORAGE_KEY = "smartprep_user";
+
+const loadStoredUser = () => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const rawUser = window.localStorage.getItem(AUTH_STORAGE_KEY);
+    if (!rawUser) {
+      return null;
+    }
+
+    const parsedUser = JSON.parse(rawUser);
+    if (!parsedUser?.id) {
+      return null;
+    }
+
+    return parsedUser;
+  } catch {
+    return null;
+  }
 };
 
 const C = {
@@ -538,6 +558,8 @@ function App() {
   const [showIntro, setShowIntro] = useState(true);
   const [progressPct, setProgressPct] = useState(0);
   const [visibleLetters, setVisibleLetters] = useState(Array(LETTERS.length).fill(false));
+  const [currentUser, setCurrentUser] = useState(loadStoredUser);
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [tab, setTab] = useState("home");
   const [subjects, setSubjects] = useState([]);
   const [isSubjectsLoading, setIsSubjectsLoading] = useState(true);
@@ -545,6 +567,7 @@ function App() {
   const [isDashboardLoading, setIsDashboardLoading] = useState(false);
   const [activeSubject, setActiveSubject] = useState(null);
   const [globalError, setGlobalError] = useState("");
+  const [flowNotice, setFlowNotice] = useState("");
   const [scrollY, setScrollY] = useState(0);
   const [scrollProgress, setScrollProgress] = useState(0);
 
@@ -588,8 +611,12 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (!currentUser?.id) {
+      return;
+    }
+
     void loadSubjects();
-  }, []);
+  }, [currentUser?.id]);
 
   useEffect(() => {
     let ticking = false;
@@ -692,27 +719,140 @@ function App() {
     }
   };
 
-  const loadDashboard = async () => {
+  const loadDashboard = async (userId = currentUser?.id, options = {}) => {
+    const silent = options.silent === true;
+
+    if (!userId) {
+      return null;
+    }
+
     try {
-      setGlobalError("");
-      setIsDashboardLoading(true);
-      const data = await getDashboard(GUEST_USER.id);
+      if (!silent) {
+        setGlobalError("");
+        setIsDashboardLoading(true);
+      }
+
+      const data = await getDashboard(userId);
       setDashboard(data);
       return data;
     } catch (err) {
-      setGlobalError(err instanceof Error ? err.message : "Unable to load dashboard.");
+      if (!silent) {
+        setGlobalError(err instanceof Error ? err.message : "Unable to load dashboard.");
+      }
       return null;
     } finally {
-      setIsDashboardLoading(false);
+      if (!silent) {
+        setIsDashboardLoading(false);
+      }
     }
   };
 
+  const handleAuthSuccess = async (user) => {
+    if (!user?.id) {
+      setGlobalError("Auth succeeded but user details are missing.");
+      return;
+    }
+
+    setGlobalError("");
+    setFlowNotice("");
+    setCurrentUser(user);
+    setIsAuthOpen(false);
+    setTab("subjects");
+    setDashboard(null);
+    setActiveSubject(null);
+
+    try {
+      window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
+    } catch {
+      // No-op when localStorage is unavailable.
+    }
+
+    const dashboardData = await loadDashboard(user.id, { silent: true });
+    void loadSubjects();
+
+    const attempts = dashboardData?.performance?.attempts ?? 0;
+    if (attempts > 0) {
+      setTab("dashboard");
+      setFlowNotice(`Welcome back ${user.name || user.id}. Continue from your dashboard.`);
+      return;
+    }
+
+    setTab("subjects");
+    setFlowNotice(`Welcome ${user.name || user.id}. Pick a subject to start your first adaptive quiz.`);
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    setIsAuthOpen(false);
+    setDashboard(null);
+    setSubjects([]);
+    setActiveSubject(null);
+    setTab("home");
+    setGlobalError("");
+    setFlowNotice("You have been logged out.");
+
+    try {
+      window.localStorage.removeItem(AUTH_STORAGE_KEY);
+    } catch {
+      // No-op when localStorage is unavailable.
+    }
+  };
+
+  const openAuth = (notice = "") => {
+    setGlobalError("");
+    setTab("home");
+    setIsAuthOpen(true);
+
+    if (notice) {
+      setFlowNotice(notice);
+    }
+  };
+
+  const goHome = () => {
+    setTab("home");
+
+    if (!currentUser) {
+      setIsAuthOpen(false);
+    }
+  };
+
+  const goSmartStart = () => {
+    if (!currentUser?.id) {
+      openAuth("Create an account or login to begin your adaptive prep journey.");
+      return;
+    }
+
+    if (activeSubject) {
+      setTab("quiz");
+      setFlowNotice("Continue your active quiz session.");
+      return;
+    }
+
+    const attempts = dashboard?.performance?.attempts ?? 0;
+    if (attempts > 0) {
+      void goDashboard();
+      return;
+    }
+
+    goSubjects();
+  };
+
   const goDashboard = async () => {
+    if (!currentUser?.id) {
+      openAuth();
+      return;
+    }
+
     setTab("dashboard");
     await loadDashboard();
   };
 
   const goSubjects = () => {
+    if (!currentUser?.id) {
+      openAuth("Login to unlock subjects and start your quiz.");
+      return;
+    }
+
     setTab("subjects");
 
     if (!dashboard && !isDashboardLoading) {
@@ -722,12 +862,17 @@ function App() {
 
   const startSubjectQuiz = (subject) => {
     setGlobalError("");
+    setFlowNotice("");
     setActiveSubject(subject);
     setTab("quiz");
   };
 
   const handleQuizComplete = async () => {
-    await loadDashboard();
+    const dashboardData = await loadDashboard();
+    if (dashboardData) {
+      setTab("dashboard");
+      setFlowNotice("Great work. Your latest quiz insights are ready in the dashboard.");
+    }
   };
 
   const tabStyle = (target) => {
@@ -756,7 +901,7 @@ function App() {
                 SmartPrep AI identifies your weak areas, adapts question flow live, and tracks your readiness with every session.
               </p>
               <div style={styles.row}>
-                <button style={styles.btng} onClick={goSubjects}>Explore subjects</button>
+                <button style={styles.btng} onClick={goSmartStart}>Explore subjects</button>
                 <button style={styles.btngh} onClick={goDashboard}>Open dashboard</button>
               </div>
               <div className="smart-scroll-cue" style={{ opacity: Math.max(0.26, 1 - (scrollY / 360)) }}>
@@ -856,7 +1001,7 @@ function App() {
           </h2>
           <p style={styles.ctaP}>Practice daily, adapt faster, and build confidence with clear progress.</p>
           <div style={{ ...styles.row, justifyContent: "center" }}>
-            <button style={styles.btng} onClick={goSubjects}>Start now</button>
+            <button style={styles.btng} onClick={goSmartStart}>Start now</button>
             <button style={styles.btngh} onClick={goDashboard}>View dashboard</button>
           </div>
         </section>
@@ -866,7 +1011,6 @@ function App() {
 
   const renderSubjects = () => {
     const chapterRecommendations = dashboard?.chapter_recommendations || [];
-    const revisionMessage = dashboard?.revision_message || "";
 
     return (
       <section style={styles.sec()} className="smart-section smart-reveal">
@@ -893,38 +1037,14 @@ function App() {
                       <h3 style={styles.fcH3}>{subject.name}</h3>
                       {subjectRecommendations.length ? (
                         <span style={styles.recBadge}>
-                          {subjectRecommendations.length} re-read chapter{subjectRecommendations.length > 1 ? "s" : ""}
+                          {subjectRecommendations.length} focus topic{subjectRecommendations.length > 1 ? "s" : ""}
                         </span>
                       ) : (
-                        <span style={styles.recBadgeQuiet}>No re-read needed</span>
+                        <span style={styles.recBadgeQuiet}>No focus topics</span>
                       )}
                     </div>
                     <p style={styles.fcP}>{subject.description}</p>
                     <button style={styles.btn} onClick={() => startSubjectQuiz(subject)}>Start Subject Quiz</button>
-
-                    {subjectRecommendations.length ? (
-                      <details style={styles.recDetails}>
-                        <summary style={styles.recSummary}>View recommended chapters</summary>
-                        <div style={styles.recList}>
-                          <p style={styles.fcP}>{revisionMessage}</p>
-                          {subjectRecommendations.map((item) => (
-                            <a
-                              key={`${item.subject_id}-${item.concept}-${item.url}`}
-                              href={item.url}
-                              target="_blank"
-                              rel="noreferrer"
-                              style={styles.recCard}
-                              className="smart-recommend-link"
-                            >
-                              <span style={styles.recTitle}>{item.chapter_title}</span>
-                              <span style={styles.recMeta}>{item.concept} ({item.source})</span>
-                              <span style={styles.recMeta}>{item.why}</span>
-                              <span style={styles.recAction}>{item.action}</span>
-                            </a>
-                          ))}
-                        </div>
-                      </details>
-                    ) : null}
                   </div>
                 );
               })
@@ -970,15 +1090,23 @@ function App() {
     }
 
     const weakAreas = dashboard.weak_areas || [];
+    const weakTopicsBySubject = dashboard.weak_topics_by_subject || [];
     const strongAreas = dashboard.strong_areas || [];
     const masteryItems = Object.entries(dashboard.concept_mastery || {});
+    const topicRecommendations = dashboard.chapter_recommendations || [];
+    const recommendationLookup = new Map(
+      topicRecommendations.map((item) => [
+        `${item.subject_id}::${item.topic || item.concept}`,
+        item,
+      ]),
+    );
 
     return (
       <section style={styles.sec()} className="smart-section smart-reveal">
         <div style={styles.inn}>
           <div style={styles.ey(false)}>Performance dashboard</div>
-          <div style={styles.st2(false)}>Track readiness and concept mastery</div>
-          <div style={styles.sb(false)}>Live stats update after quiz completion.</div>
+          <div style={styles.st2(false)}>Track readiness, mastery, and weak topics by subject</div>
+          <div style={styles.sb(false)}>Live stats and topic links update after quiz completion.</div>
 
           <div style={styles.grid}>
             <div style={styles.fc} className="smart-feature-card">
@@ -1015,6 +1143,53 @@ function App() {
           </div>
 
           <div style={{ ...styles.fc, marginTop: "1rem" }} className="smart-feature-card">
+            <h3 style={styles.fcH3}>Weak Topics by Subject</h3>
+            {weakTopicsBySubject.length ? (
+              <div style={{ display: "grid", gap: "0.75rem" }}>
+                {weakTopicsBySubject.map((group) => (
+                  <div
+                    key={group.subject_id}
+                    style={{
+                      border: "1px solid rgba(84,119,146,.18)",
+                      borderRadius: 10,
+                      padding: "0.75rem 0.85rem",
+                      background: "linear-gradient(160deg, #ffffff, #fff8eb)",
+                    }}
+                  >
+                    <p style={{ ...styles.recTitle, fontSize: 18, margin: 0 }}>{group.subject_name}</p>
+                    <div style={{ display: "flex", gap: "0.45rem", flexWrap: "wrap", marginTop: "0.55rem" }}>
+                      {group.topics.map((topicItem) => {
+                        const recommendation = recommendationLookup.get(
+                          `${group.subject_id}::${topicItem.topic}`,
+                        );
+
+                        return recommendation ? (
+                          <a
+                            key={`${group.subject_id}-${topicItem.topic}`}
+                            href={recommendation.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{ textDecoration: "none" }}
+                            title={`Open ${recommendation.chapter_title}`}
+                          >
+                            <span style={styles.tag}>{topicItem.topic} ({Math.round(topicItem.mastery)}%)</span>
+                          </a>
+                        ) : (
+                          <span key={`${group.subject_id}-${topicItem.topic}`} style={styles.tag}>
+                            {topicItem.topic} ({Math.round(topicItem.mastery)}%)
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p style={styles.fcP}>Complete more attempts to detect weak topics by subject.</p>
+            )}
+          </div>
+
+          <div style={{ ...styles.fc, marginTop: "1rem" }} className="smart-feature-card">
             <h3 style={styles.fcH3}>Concept Mastery</h3>
             {masteryItems.length ? (
               masteryItems.map(([concept, value]) => (
@@ -1033,6 +1208,35 @@ function App() {
             )}
           </div>
 
+          <div style={{ ...styles.fc, marginTop: "1rem" }} className="smart-feature-card">
+            <h3 style={styles.fcH3}>Topic Focus Recommendations</h3>
+            <p style={styles.fcP}>{dashboard.revision_message || "Use these links to improve weak topics."}</p>
+            {topicRecommendations.length ? (
+              <div style={styles.recList}>
+                {topicRecommendations.map((item) => {
+                  const topicLabel = item.topic || item.concept;
+                  return (
+                    <a
+                      key={`${item.subject_id}-${topicLabel}-${item.url}`}
+                      href={item.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={styles.recCard}
+                      className="smart-recommend-link"
+                    >
+                      <span style={styles.recTitle}>{item.chapter_title}</span>
+                      <span style={styles.recMeta}>{item.subject_name} • {topicLabel}</span>
+                      <span style={styles.recMeta}>{item.why}</span>
+                      <span style={styles.recAction}>{item.action}</span>
+                    </a>
+                  );
+                })}
+              </div>
+            ) : (
+              <p style={styles.fcP}>No topic recommendations yet. Complete one quiz to generate them.</p>
+            )}
+          </div>
+
           <div style={{ marginTop: "1rem", display: "flex", gap: "0.7rem", flexWrap: "wrap" }}>
             <button style={styles.btn} onClick={goSubjects}>Practice More</button>
             <button style={styles.btn} onClick={() => { void loadDashboard(); }}>Refresh Dashboard</button>
@@ -1043,6 +1247,14 @@ function App() {
   };
 
   const renderTabContent = () => {
+    if (!currentUser) {
+      if (isAuthOpen) {
+        return <LoginSignup onAuthSuccess={handleAuthSuccess} />;
+      }
+
+      return renderHome();
+    }
+
     if (tab === "subjects") {
       return renderSubjects();
     }
@@ -1088,17 +1300,33 @@ function App() {
       <nav style={styles.nav} className="smart-nav">
         <div style={styles.logo} className="smart-logo">Smart<span style={{ color: C.s }}>Prep</span> AI</div>
         <div style={styles.navLinks}>
-          <button type="button" style={tabStyle("home")} className="smart-nav-btn" onClick={() => setTab("home")}>Home</button>
-          <button type="button" style={tabStyle("subjects")} className="smart-nav-btn" onClick={goSubjects}>Subjects</button>
-          <button type="button" style={tabStyle("dashboard")} className="smart-nav-btn" onClick={goDashboard}>Dashboard</button>
-          {activeSubject ? (
-            <button type="button" style={tabStyle("quiz")} className="smart-nav-btn" onClick={() => setTab("quiz")}>Live Quiz</button>
-          ) : (
-            <button type="button" style={styles.tabBtnDisabled} className="smart-nav-btn" disabled>Live Quiz</button>
-          )}
-          <button type="button" style={styles.btn} className="smart-nav-cta" onClick={goSubjects}>Get started</button>
+          {currentUser ? <span className="user-chip">{currentUser.name || currentUser.id}</span> : null}
+          <button
+            type="button"
+            style={tabStyle("home")}
+            className="smart-nav-btn"
+            onClick={goHome}
+          >
+            Home
+          </button>
+          {currentUser ? (
+            <>
+              <button type="button" style={tabStyle("subjects")} className="smart-nav-btn" onClick={goSubjects}>Subjects</button>
+              <button type="button" style={tabStyle("dashboard")} className="smart-nav-btn" onClick={goDashboard}>Dashboard</button>
+              <button type="button" style={styles.tabBtn} className="smart-nav-btn" onClick={handleLogout}>Logout</button>
+            </>
+          ) : null}
+          <button type="button" style={styles.btn} className="smart-nav-cta" onClick={() => {
+            goSmartStart();
+          }}>Get started</button>
         </div>
       </nav>
+
+      {flowNotice ? (
+        <div style={styles.msgWrap}>
+          <p className="info-banner">{flowNotice}</p>
+        </div>
+      ) : null}
 
       {globalError ? (
         <div style={styles.msgWrap}>
@@ -1121,7 +1349,7 @@ function App() {
             </header>
 
             <Quiz
-              user={GUEST_USER}
+              user={currentUser}
               subject={activeSubject}
               onExit={goSubjects}
               onComplete={handleQuizComplete}

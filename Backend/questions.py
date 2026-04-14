@@ -11,36 +11,42 @@ SUBJECTS = {
         "description": "Programming logic, software systems, and CS fundamentals",
         "categories": [18],
         "fallback_concepts": ["Algorithms", "Programming", "Systems"],
+        "fallback_topics": ["Python Variables", "Algorithms", "Computer Systems"],
     },
     "mathematics": {
         "name": "Mathematics",
         "description": "Arithmetic, algebra, probability, and quantitative reasoning",
         "categories": [19],
         "fallback_concepts": ["Algebra", "Numeracy", "Logic"],
+        "fallback_topics": ["Linear Equations", "Arithmetic", "Probability"],
     },
     "science": {
         "name": "Science & Nature",
         "description": "Physics, biology, chemistry, and scientific thinking",
         "categories": [17],
         "fallback_concepts": ["Physics", "Biology", "Chemistry"],
+        "fallback_topics": ["Physics", "Biology", "Chemistry"],
     },
     "general_knowledge": {
         "name": "General Knowledge",
         "description": "Mixed high-value trivia for broad readiness",
         "categories": [9],
         "fallback_concepts": ["Culture", "History", "Reasoning"],
+        "fallback_topics": ["Current Affairs", "World History", "Reasoning"],
     },
     "history": {
         "name": "History",
         "description": "Ancient to modern world history, events, and civilizations",
         "categories": [23],
         "fallback_concepts": ["Ancient", "Modern", "Events"],
+        "fallback_topics": ["Ancient History", "Modern History", "Historical Events"],
     },
     "geography": {
         "name": "Geography",
         "description": "Countries, capitals, maps, and world regions",
         "categories": [22],
         "fallback_concepts": ["Countries", "Capitals", "Regions"],
+        "fallback_topics": ["Countries", "World Capitals", "Physical Geography"],
     },
 }
 
@@ -74,6 +80,43 @@ CONCEPT_KEYWORDS = {
         "Countries": ["country", "nation", "border", "flag", "population", "city"],
         "Capitals": ["capital", "province", "state", "government", "seat"],
         "Regions": ["continent", "ocean", "desert", "mountain", "river", "island"],
+    },
+}
+
+TOPIC_KEYWORDS = {
+    "computer_science": {
+        "Python Variables": ["python", "variable", "variables", "assignment", "mutable", "immutable"],
+        "Python Functions": ["function", "parameter", "argument", "return", "callable", "scope"],
+        "Data Structures": ["array", "list", "stack", "queue", "dictionary", "hash", "linked list"],
+        "Object Oriented Programming": ["class", "object", "inheritance", "polymorphism", "encapsulation"],
+        "Algorithms": ["algorithm", "complexity", "sort", "search", "tree", "graph"],
+        "Computer Systems": ["cpu", "memory", "network", "protocol", "database", "linux", "os"],
+    },
+    "mathematics": {
+        "Linear Equations": ["equation", "linear", "solve for", "x", "slope"],
+        "Arithmetic": ["sum", "difference", "ratio", "fraction", "decimal", "percent"],
+        "Probability": ["probability", "chance", "odds", "distribution", "expected"],
+        "Geometry": ["triangle", "circle", "angle", "area", "perimeter"],
+    },
+    "science": {
+        "Physics": ["force", "energy", "motion", "gravity", "velocity", "electric"],
+        "Biology": ["cell", "dna", "organism", "species", "enzyme", "evolution"],
+        "Chemistry": ["atom", "molecule", "acid", "base", "reaction", "element"],
+    },
+    "general_knowledge": {
+        "Current Affairs": ["current", "recent", "latest", "government", "policy"],
+        "World History": ["war", "empire", "revolution", "historic", "century"],
+        "Reasoning": ["capital", "country", "currency", "language", "continent"],
+    },
+    "history": {
+        "Ancient History": ["ancient", "pharaoh", "roman", "greek", "dynasty", "medieval"],
+        "Modern History": ["world war", "independence", "industrial", "treaty", "president"],
+        "Historical Events": ["battle", "revolution", "timeline", "historic", "event"],
+    },
+    "geography": {
+        "Countries": ["country", "nation", "border", "flag", "population"],
+        "World Capitals": ["capital", "seat of government", "province", "state"],
+        "Physical Geography": ["continent", "ocean", "desert", "mountain", "river", "island"],
     },
 }
 
@@ -114,6 +157,18 @@ def _infer_concept(subject_id, question_text, index):
     return fallback_concepts[index % len(fallback_concepts)]
 
 
+def _infer_topic(subject_id, question_text, index):
+    normalized_text = question_text.lower()
+    topic_map = TOPIC_KEYWORDS.get(subject_id, {})
+
+    for topic_name, keywords in topic_map.items():
+        if any(keyword in normalized_text for keyword in keywords):
+            return topic_name
+
+    fallback_topics = SUBJECTS[subject_id].get("fallback_topics") or SUBJECTS[subject_id]["fallback_concepts"]
+    return fallback_topics[index % len(fallback_topics)]
+
+
 def _fetch_trivia_results(url, retries=MAX_FETCH_RETRIES):
     for attempt in range(1, retries + 1):
         try:
@@ -136,10 +191,12 @@ def _build_offline_questions(subject_id, amount):
     total = max(6, min(amount, 20))
     subject_name = SUBJECTS[subject_id]["name"]
     concepts = SUBJECTS[subject_id]["fallback_concepts"]
+    topics = SUBJECTS[subject_id].get("fallback_topics") or concepts
     questions = []
 
     for index in range(total):
         concept = concepts[index % len(concepts)]
+        topic = topics[index % len(topics)]
 
         if index < total / 3:
             difficulty = DIFFICULTY_LEVELS[0]
@@ -164,6 +221,7 @@ def _build_offline_questions(subject_id, amount):
                 "options": options,
                 "answer": correct_answer,
                 "concept": concept,
+                "topic": topic,
                 "difficulty": difficulty,
                 "subject_id": subject_id,
             }
@@ -203,6 +261,7 @@ def fetch_questions(subject_id="computer_science", amount=12, force_refresh=Fals
         random.shuffle(options)
 
         concept = _infer_concept(resolved_subject, question_text, index)
+        topic = _infer_topic(resolved_subject, question_text, index)
         difficulty = item.get("difficulty", "medium")
 
         questions.append(
@@ -212,6 +271,7 @@ def fetch_questions(subject_id="computer_science", amount=12, force_refresh=Fals
                 "options": options,
                 "answer": correct_answer,
                 "concept": concept,
+                "topic": topic,
                 "difficulty": difficulty,
                 "subject_id": resolved_subject,
             }
@@ -230,6 +290,7 @@ def sanitize_question(question):
         "question": question["question"],
         "options": question["options"],
         "concept": question["concept"],
+        "topic": question.get("topic", question["concept"]),
         "difficulty": question["difficulty"],
         "subject_id": question.get("subject_id"),
     }
@@ -246,10 +307,12 @@ def build_explanation(question, selected_option):
     if not question:
         return "Review the concept and try again."
 
+    topic = question.get("topic") or question.get("concept")
+
     if selected_option == question["answer"]:
-        return f"Great work. {question['answer']} is correct for this {question['concept']} concept."
+        return f"Great work. {question['answer']} is correct for this {topic} topic."
 
     return (
-        f"Not quite. Focus on {question['concept']} concepts and review this topic's key ideas "
+        f"Not quite. Focus on {topic} and review this topic's key ideas "
         "before attempting a similar question again."
     )
